@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Ecks Tweet</title>
+    <script>
+        function login() {
+            var username = document.getElementById("username").value;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/login", true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    // Set the username in the cookie
+                    document.cookie = "username=" + username;
+                    //document.cookie = "sessionID=" + username;
+                    // Show the tweet posting interface
+                    document.getElementById("tweetInterface").style.display = 'block';
+                    // Load existing tweets
+                    loadTweets();
+                    document.getElementById("usernameInterface").style.display = 'none';
+                }
+            };
+            xhr.send(JSON.stringify({ username: username }));
+        }
+
+        function deleteTweet(tweetId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("DELETE", "/api/tweet/" + tweetId, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    loadTweets();
+                }
+            };
+            xhr.send();
+        }
+
+
+        function loadTweets() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "/api/tweet", true);
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    var tweets = JSON.parse(this.responseText);
+                    var tweetsContainer = document.getElementById("tweetsContainer");
+                    tweetsContainer.innerHTML = '';
+                    tweets.forEach(function (tweet) {
+                        tweetsContainer.innerHTML += `
+                    <div>
+                        <input type="text" id="tweet_${tweet.id}" value="${tweet.username} says ${tweet.content}">
+                        <button onclick="updateTweet('${tweet.id}')">Update</button>
+                        <button onclick="deleteTweet('${tweet.id}')">Delete</button>
+                    </div>`;
+                        //     tweetsContainer.innerHTML += `
+                        // <div>
+                        //     <input type="text" id="tweet_${tweet.id}" value="${tweet.username} says ${tweet.content}">
+                        //     <button onclick="updateTweet('${tweet.id}')">Update</button>
+                        // </div>`;
+
+                    });
+                }
+            };
+            xhr.send();
+        }
+
+
+        function postTweet() {
+            var content = document.getElementById("tweetContent").value;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/api/tweet", true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    loadTweets();
+                }
+            };
+            var username = getCookie("username");
+            xhr.send(JSON.stringify({ username: username, content: content }));
+            document.getElementById("tweetContent").value = ''; // Clear the input field after sending
+        }
+
+        function updateTweet(tweetId) {
+            var tweetContentInput = document.getElementById('tweet_' + tweetId);
+            var newContent = tweetContentInput.value;
+            if (newContent) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("PUT", "/api/tweet/" + tweetId, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                        loadTweets(); // Reload the tweets to reflect the updated content
+                    }
+                };
+                var username = getCookie("username");
+                xhr.send(JSON.stringify({ content: newContent,username: username, }));
+            }
+        }
+
+
+        function getCookie(cname) {
+            var name = cname + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + '=; Max-Age=0; path=/;';
+        }
+
+        function logout() {
+            //var session = getCookie("session_id");
+            deleteCookie('username');
+            var xhr = new XMLHttpRequest();
+            xhr.open("DELETE", "/api/login", true);
+            //xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+                    // Clear local storage or cookies if using them
+                    // Redirect to login page or refresh the current page to show the login form
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.reload();
+                }
+            };
+            xhr.send();
+            //xhr.send(JSON.stringify({ session_id: session }));
+        }
+
+
+        // Call this function to display tweets when the page loads
+        window.onload = function () {
+            var username = getCookie("username");
+            if (username) {
+                document.getElementById("username").value = username;
+                login(); // auto login with cookie username
+                document.getElementById("usernameInterface").style.display = 'none';
+            } else {
+                document.getElementById("tweetInterface").style.display = 'none';
+            }
+        };
+    </script>
+</head>
+
+<body>
+    <div id="usernameInterface">
+        <input type="text" id="username" placeholder="Enter your name" />
+        <button onclick="login()">Login</button>
+    </div>
+    <hr>
+
+
+    <div id="tweetInterface" style="display:none;">
+        <button id="logoutButton" onclick="logout()">Logout</button>
+        <input type="text" id="tweetContent" placeholder="What's happening?" />
+        <button onclick="postTweet()">Tweet</button>
+    </div>
+    <div id="tweetsContainer"></div>
+</body>
+
+</html>
